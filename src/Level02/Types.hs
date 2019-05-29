@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# OPTIONS_GHC -fno-warn-dodgy-exports #-}
 module Level02.Types
-  ( Topic
-  , CommentText
+  ( Topic (..)
+  , CommentText (..)
   , ContentType (..)
   , RqType (..)
   , Error (..)
@@ -57,7 +57,7 @@ newtype CommentText = CommentText Text
 -- ViewRq : Which needs the topic being requested.
 -- ListRq : Which doesn't need anything and lists all of the current topics.
 data RqType = AddRq Topic CommentText
-           |  ViewRw Topic 
+           |  ViewRq Topic 
            |  ListRq
 
 -- Not everything goes according to plan, but it's important that our types
@@ -107,9 +107,11 @@ renderContentType ct = case ct of
 mkTopic
   :: Text
   -> Either Error Topic
-mkTopic topicIn = cast topicIn of
-  "" -> Error "cannot accept empty text"
-  cc -> Topic cc 
+mkTopic topicIn = 
+  case topicIn of
+  empty -> Left $ Error "cannot accept empty text"
+  cc -> Right $ Topic cc 
+  
   -- error "mkTopic not implemented"
 
 getTopic
@@ -123,11 +125,13 @@ getTopic _ = ""
 mkCommentText
   :: Text
   -> Either Error CommentText
-mkCommentText comIn = case comIn of 
-  "" -> Error "Cannot accept empty Comment"
-  xx -> CommentText xx
+mkCommentText comIn = 
+  case comIn of 
+    empty -> Left $ Error "Cannot accept empty Comment"
+    xx -> Right $ CommentText xx
 
-  -- error "mkCommentText not implemented"
+-- error "mkCommentText not implemented"
+  
 
 getCommentText
   :: CommentText
