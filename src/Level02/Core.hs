@@ -160,12 +160,24 @@ handleRequest (AddRq aa bb ) =
 -- | Reimplement this function using the new functions and ``RqType`` constructors as a guide.
 app
   :: Application
-app req respond = do
-  ss <- mkRequest req
-  case ss of 
-    Right rq -> handleRequest rq
-    -- Left err -> 
-  -- 
+app rq cb = mkRequest rq
+  >>= fmap handleRespErr . handleRErr
+  >>= cb
+  where
+  -- Does this seem clunky to you?
+    handleRespErr =
+      either mkErrorResponse id
+  -- Because it is clunky, and we have a better solution, later.
+    handleRErr =
+      either ( pure . Left ) ( pure . handleRequest )
+  
+  
+  -- do
+  -- ss <- mkRequest req
+  -- case ss of 
+  --   Right rq -> handleRequest rq
+  --   -- Left err -> 
+  -- -- 
   -- error "app not reimplemented"
 
 runApp :: IO ()
