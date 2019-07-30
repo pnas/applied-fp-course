@@ -1,4 +1,4 @@
 packages: .
 
 tests: True
-documentation: False
+documentation: True

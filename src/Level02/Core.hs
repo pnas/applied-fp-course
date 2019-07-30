@@ -126,7 +126,7 @@ mkRequest
 mkRequest rq =
   case pathInfo rq of
     ( "list" : _ ) -> pure $ mkListRequest
-    ( ta : "add" : _ ) -> pure $ mkAddRequest ta (LBS.fromStrict ( encodeUtf8 "add topic"))
+    ( ta : "add" : _ ) -> mkAddRequest ta <$> strictRequestBody rq --(LBS.fromStrict ( encodeUtf8 "add topic"))
     ( tt : "view" : _ ) -> pure $ mkViewRequest tt
     _ -> pure $ Left (Error "unknown request type")
   -- Remembering your pattern-matching skills will let you implement the entire
@@ -155,6 +155,7 @@ handleRequest (ViewRq tt) =
 
 handleRequest (AddRq aa bb ) = 
   Right $ resp200 PlainText (LBS.fromStrict ( encodeUtf8 "make add request"))
+
   -- error "handleRequest not implemented"
   -- (Topic tt) (CommentText ll)
 -- | Reimplement this function using the new functions and ``RqType`` constructors as a guide.

@@ -14,7 +14,7 @@ module Level02.Types
   ) where
 
 import           Data.ByteString (ByteString)
-import           Data.Text       (Text)
+import           Data.Text       (Text , null)
 
 -- Working through the specification for our application, what are the
 -- types of requests we're going to handle?
@@ -108,9 +108,9 @@ mkTopic
   :: Text
   -> Either Error Topic
 mkTopic topicIn = 
-  case topicIn of
-  empty -> Left $ Error "cannot accept empty text"
-  cc -> Right $ Topic cc 
+  case Data.Text.null topicIn of
+    True -> Left $ Error "cannot accept empty text"
+    False -> Right $ Topic topicIn 
   
   -- error "mkTopic not implemented"
 
@@ -126,9 +126,9 @@ mkCommentText
   :: Text
   -> Either Error CommentText
 mkCommentText comIn = 
-  case comIn of 
-    empty -> Left $ Error "Cannot accept empty Comment"
-    xx -> Right $ CommentText xx
+  case Data.Text.null comIn of 
+    True -> Left $ Error "Empty Comment Text"
+    False -> Right $ CommentText comIn
 
 -- error "mkCommentText not implemented"
   
