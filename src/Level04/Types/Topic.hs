@@ -61,4 +61,6 @@ getTopic (Topic t) =
 --
 encodeTopic :: Applicative f => Encoder f Topic
 encodeTopic = -- Try using 'contramap' and 'E.text'
-  error "topic JSON encoder not implemented"
+  contramap ( \(Topic t) -> t ) E.text
+
+  -- error "topic JSON encoder not implemented"
