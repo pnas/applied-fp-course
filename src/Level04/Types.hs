@@ -14,6 +14,8 @@ module Level04.Types
   , getCommentText
   , renderContentType
   , fromDBComment
+  , encodeComment
+  , encodeTopic
   ) where
 
 import           GHC.Generics               (Generic)
@@ -86,10 +88,10 @@ encodeComment = E.mapLikeObj $ \p ->
 fromDBComment
   :: DBComment
   -> Either Error Comment
-fromDBComment (DBComment id topic body ctime) =
+fromDBComment (DBComment id_ topic body ctime) =
   case mkTopic topic of 
     Right t -> case mkCommentText body of
-                 Right ct -> Right $ Comment (CommentId id) t ct ctime
+                 Right ct -> Right $ Comment (CommentId id_) t ct ctime
                  Left ce -> Left ce
     Left e -> Left e
   -- error "fromDBComment not yet implemented"

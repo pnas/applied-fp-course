@@ -13,16 +13,23 @@ module Level04.DB
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 
-import           Data.Time                          (getCurrentTime)
+import           Data.Time                          (UTCTime, getCurrentTime)
+import qualified Data.Time.Format                   as TF
 
 import           Database.SQLite.Simple             (Connection, Query (Query))
 import qualified Database.SQLite.Simple             as Sql
+import           Database.SQLite.Simple.Time.Implementation (utcTimeToBuilder)
 
 import qualified Database.SQLite.SimpleErrors       as Sql
 import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 
 import           Level04.Types                      (Comment, CommentText,
-                                                     Error, Topic)
+                                                     Error, Topic , getTopic, mkTopic ,
+                                                     fromDBComment , getCommentText)
+import           Level04.DB.Types                   (DBComment(..) , fromRow)
+-- import           Level04.DB.Types                   as DBT
+
+import           Level04.Types.Error                (Error(..), nonEmptyText)   
 
 -- ------------------------------------------------------------------------|
 -- You'll need the documentation for sqlite-simple ready for this section! |
@@ -39,12 +46,15 @@ data FirstAppDB = FirstAppDB
   { dbConn :: Connection
   }
 
+
+
 -- Quick helper to pull the connection and close it down.
 closeDB
   :: FirstAppDB
   -> IO ()
-closeDB =
-  error "closeDB not implemented"
+closeDB db =
+  Sql.close $ dbConn db
+  -- error "closeDB not implemented"
 
 -- Given a `FilePath` to our SQLite DB file, initialise the database and ensure
 -- our Table is there by running a query to create it, if it doesn't exist
@@ -52,13 +62,18 @@ closeDB =
 initDB
   :: FilePath
   -> IO ( Either SQLiteResponse FirstAppDB )
-initDB fp =
-  error "initDB not implemented"
+initDB fp = do
+  conn <- Sql.open fp
+  resp <- Sql.runDBAction $ Sql.execute_ conn (Sql.Query createTableQ) 
+  case resp of 
+    Left a -> return $ Left a
+    Right z -> return $ Right FirstAppDB { dbConn = conn }
   where
   -- Query has an `IsString` instance so string literals like this can be
   -- converted into a `Query` type when the `OverloadedStrings` language
   -- extension is enabled.
     createTableQ = "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY, topic TEXT, comment TEXT, time TEXT)"
+  -- error "initDB not implemented"
 
 -- Note that we don't store the `Comment` in the DB, it is the type we build
 -- to send to the outside world. We will be loading our `DBComment` type from
@@ -74,42 +89,83 @@ getComments
   :: FirstAppDB
   -> Topic
   -> IO (Either Error [Comment])
-getComments =
+getComments db topic =
   let
     sql = "SELECT id,topic,comment,time FROM comments WHERE topic = ?"
   -- There are several possible implementations of this function. Particularly
   -- there may be a trade-off between deciding to throw an Error if a DBComment
   -- cannot be converted to a Comment, or simply ignoring any DBComment that is
   -- not valid.
-  in
-    error "getComments not implemented"
+  in 
+    do 
+      resp <- Sql.runDBAction $ Sql.query (dbConn db) sql [getTopic topic]
+      case resp of
+        Left a -> return $ Left EmptyCommentText
+        Right result ->
+          case traverse fromDBComment result of 
+            Left z -> return $ Left z
+            Right cc -> return $ Right cc
+    
+    -- error "getComments not implemented"
+
+dbEncodeISO8601DateTime :: UTCTime -> Text
+dbEncodeISO8601DateTime ut = ( Text.pack . TF.formatTime loc fmt ) ut
+  where
+    fmt = TF.iso8601DateFormat (Just "%H:%M:%S")
+    loc = TF.defaultTimeLocale { TF.knownTimeZones = [] }
+    
 
 addCommentToTopic
   :: FirstAppDB
   -> Topic
   -> CommentText
   -> IO (Either Error ())
-addCommentToTopic =
+addCommentToTopic db topic comment =
   let
     sql = "INSERT INTO comments (topic,comment,time) VALUES (?,?,?)"
   in
-    error "addCommentToTopic not implemented"
+    do 
+      insertTime <- getCurrentTime
+      resp <- Sql.runDBAction $ Sql.execute (dbConn db) sql [getTopic topic , getCommentText comment , dbEncodeISO8601DateTime insertTime]
+      case resp of
+        Left a -> return $ Left EmptyCommentText
+        Right result -> return $ Right ()
+    -- error "addCommentToTopic not implemented"
+
+
+instance Sql.FromRow Text where
+  fromRow = Text.pack <$> Sql.field 
+    
 
 getTopics
   :: FirstAppDB
   -> IO (Either Error [Topic])
-getTopics =
+getTopics db =
   let
     sql = "SELECT DISTINCT topic FROM comments"
   in
-    error "getTopics not implemented"
+    do 
+      resp <- Sql.runDBAction $ Sql.query_ (dbConn db) sql
+      case resp of
+        Left a -> return $ Left EmptyTopic
+        Right result ->
+          case traverse mkTopic result of 
+            Left z -> return $ Left z
+            Right cc -> return $ Right cc
+    
+    -- error "getTopics not implemented"
 
 deleteTopic
   :: FirstAppDB
   -> Topic
   -> IO (Either Error ())
-deleteTopic =
+deleteTopic db topic =
   let
     sql = "DELETE FROM comments WHERE topic = ?"
   in
-    error "deleteTopic not implemented"
+    do 
+      resp <- Sql.runDBAction $ Sql.execute (dbConn db) sql [getTopic topic]
+      case resp of
+        Left a -> return $ Left EmptyTopic
+        Right result -> return $ Right ()
+    -- error "deleteTopic not implemented"

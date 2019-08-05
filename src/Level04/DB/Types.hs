@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
-module Level04.DB.Types where
+module Level04.DB.Types ( DBComment(..) , fromRow )
+where
 
-import           Data.Text                      (Text)
+import           Data.Text                      (Text , pack)
 import           Data.Time                      (UTCTime)
 
 import           Database.SQLite.Simple.FromRow (FromRow (fromRow), field)

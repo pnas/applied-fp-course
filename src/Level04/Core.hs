@@ -33,13 +33,13 @@ import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 import           Waargonaut.Encode                  (Encoder')
 import qualified Waargonaut.Encode                  as E
 
-import           Level04.Conf                       (Conf, firstAppConfig)
+import           Level04.Conf                       (Conf, firstAppConfig , dbFilePath) 
 import qualified Level04.DB                         as DB
 import           Level04.Types                      (ContentType (JSON, PlainText),
                                                      Error (EmptyCommentText, EmptyTopic, UnknownRoute),
                                                      RqType (AddRq, ListRq, ViewRq),
                                                      mkCommentText, mkTopic,
-                                                     renderContentType)
+                                                     renderContentType , encodeComment, encodeTopic)
 
 -- Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -49,7 +49,12 @@ data StartUpError
   deriving Show
 
 runApp :: IO ()
-runApp = error "runApp needs re-implementing"
+runApp = do
+  initRes <- prepareAppReqs 
+  case initRes of 
+    Left e -> print e
+    Right b -> run 3333 $ app b
+  -- error "runApp needs re-implementing"
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -60,8 +65,12 @@ runApp = error "runApp needs re-implementing"
 --
 prepareAppReqs
   :: IO ( Either StartUpError DB.FirstAppDB )
-prepareAppReqs =
-  error "prepareAppReqs not implemented"
+prepareAppReqs = do
+  resp <- DB.initDB $ dbFilePath firstAppConfig
+  case resp of 
+    Left e -> return $ Left ( DBInitErr e  )
+    Right b -> return $ Right b 
+  -- error "prepareAppReqs not implemented"
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -138,12 +147,21 @@ handleRequest
   :: DB.FirstAppDB
   -> RqType
   -> IO (Either Error Response)
-handleRequest _db (AddRq _ _) =
-  (resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
-handleRequest _db (ViewRq _)  =
-  error "ViewRq handler not implemented"
-handleRequest _db ListRq      =
-  error "ListRq handler not implemented"
+handleRequest _db (AddRq topic comment) =
+  (resp200 PlainText "Success" <$) <$> DB.addCommentToTopic _db topic comment
+  -- error "AddRq handler not implemented"
+handleRequest _db (ViewRq topicId)  = do
+  dbResp <- DB.getComments _db topicId
+  case dbResp of 
+    Left _ -> return $ Left EmptyTopic
+    Right a -> return $ Right $ resp200Json (E.traversable encodeComment) a 
+  -- error "ViewRq handler not implemented"
+handleRequest _db ListRq      = do 
+  dbResp <- DB.getTopics _db
+  case dbResp of 
+    Left _ -> return $ Left EmptyTopic
+    Right a -> return $ Right $ resp200Json (E.traversable encodeTopic) a 
+  -- error "ListRq handler not implemented"
 
 mkRequest
   :: Request
