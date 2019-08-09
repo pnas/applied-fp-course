@@ -72,32 +72,58 @@ runAppM (AppM m) =
 
 instance Functor AppM where
   fmap :: (a -> b) -> AppM a -> AppM b
-  fmap = error "fmap for AppM not implemented"
+  fmap f (AppM ea) = AppM $ do 
+    aa <- ea 
+    return $ f <$> aa
+    -- error "fmap for AppM not implemented"
 
 instance Applicative AppM where
   pure :: a -> AppM a
-  pure  = error "pure for AppM not implemented"
+  pure c = AppM $ return $ Right c 
+    -- error "pure for AppM not implemented"
 
   (<*>) :: AppM (a -> b) -> AppM a -> AppM b
-  (<*>) = error "spaceship for AppM not implemented"
+  (<*>) (AppM f) (AppM v) = AppM $ do 
+    f1 <- f 
+    v1 <- v 
+    return $ f1 <*> v1
+    -- error "spaceship for AppM not implemented"
 
 instance Monad AppM where
   return :: a -> AppM a
-  return = error "return for AppM not implemented"
+  return z = AppM $ return $ Right z
+    --  error "return for AppM not implemented"
 
   (>>=) :: AppM a -> (a -> AppM b) -> AppM b
-  (>>=)  = error "bind for AppM not implemented"
+  (>>=) (AppM z) f = 
+    AppM $ z >>= (
+      \ x -> case x of 
+               Left v -> return $ Left v
+               Right j -> runAppM $ f j
+    )
+    --  error "bind for AppM not implemented"
 
 instance MonadIO AppM where
   liftIO :: IO a -> AppM a
-  liftIO = error "liftIO for AppM not implemented"
+  liftIO c = AppM $ do
+    c1 <- c 
+    return $ Right c1
+    -- error "liftIO for AppM not implemented"
 
 instance MonadError Error AppM where
   throwError :: Error -> AppM a
-  throwError = error "throwError for AppM not implemented"
+  throwError z = AppM $ return $ Left z
+    -- error "throwError for AppM not implemented"
 
   catchError :: AppM a -> (Error -> AppM a) -> AppM a
-  catchError = error "catchError for AppM not implemented"
+  catchError z f = AppM $ 
+    do
+      res <- runAppM z
+      case res of 
+        Left e -> runAppM (f e) 
+        Right v -> return $ Right v
+      
+    -- error "catchError for AppM not implemented"
 
 -- This is a helper function that will `lift` an Either value into our new AppM
 -- by applying `throwError` to the Left value, and using `pure` to lift the
@@ -109,7 +135,8 @@ instance MonadError Error AppM where
 liftEither
   :: Either Error a
   -> AppM a
-liftEither =
-  error "liftEither not implemented"
+liftEither z =
+  AppM $ return $ either throwError pure z
+  -- error "liftEither not implemented"
 
 -- Go to 'src/Level05/DB.hs' next.
