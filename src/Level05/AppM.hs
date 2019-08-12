@@ -2,9 +2,10 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Level05.AppM
-  ( AppM
+  ( AppM( .. )
   , liftEither
   , runAppM
+  , throwError
   ) where
 
 import           Control.Monad.Except   (MonadError (..))
