@@ -21,7 +21,7 @@ import           Network.HTTP.Types                 (Status, hContentType,
 
 import qualified Data.ByteString.Lazy               as LBS
 
-import           Data.Either                        (either)
+import           Data.Either                        (either , rights)
 import           Data.Monoid                        ((<>))
 
 import           Data.Text                          (Text)
@@ -33,7 +33,7 @@ import qualified Waargonaut.Encode                  as E
 
 import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 
-import           Level05.AppM                       (AppM, liftEither, runAppM)
+import           Level05.AppM                       (AppM (..), liftEither, runAppM)
 import qualified Level05.Conf                       as Conf
 import qualified Level05.DB                         as DB
 import           Level05.Types                      (ContentType (..),
@@ -64,7 +64,7 @@ runApp = do
       -- application. This function 'finally' will execute the first 'IO a', and then, even in the
       -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
       -- that our DB connection will always be closed when the application finishes, or crashes.
-      Ex.finally (run undefined undefined) (DB.closeDB cfg)
+      Ex.finally (run 3333 (app cfg )) (DB.closeDB cfg)
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -75,8 +75,14 @@ runApp = do
 --
 prepareAppReqs
   :: IO ( Either StartUpError DB.FirstAppDB )
-prepareAppReqs =
-  error "copy your prepareAppReqs from the previous level."
+prepareAppReqs = do
+  resp <- DB.initDB $ Conf.dbFilePath Conf.firstAppConfig
+  return $ either (Left . DBInitErr ) Right resp
+
+  -- case resp of 
+  --   Left e -> return $ Left ( DBInitErr e  )
+  --   Right b -> return $ Right b 
+  -- error "copy your prepareAppReqs from the previous level."
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -130,8 +136,22 @@ resp200Json e =
 app
   :: DB.FirstAppDB
   -> Application
-app db rq cb =
-  error "app not reimplemented"
+app db rq cb = do
+  rq1 <- runAppM $ mkRequest rq 
+  zz <- runAppM $ handleRErr rq1
+  cb (handleRespErr zz)     
+  
+  where
+  
+    handleRespErr :: Either Error Response -> Response
+    handleRespErr = either mkErrorResponse id
+
+    -- We want to pass the Database through to the handleRequest so it's
+    -- available to all of our handlers.
+    handleRErr :: Either Error RqType -> AppM Response 
+    handleRErr = either ( liftEither . Left ) ( handleRequest db ) 
+  
+  -- error "app not reimplemented"
 
 handleRequest
   :: DB.FirstAppDB
