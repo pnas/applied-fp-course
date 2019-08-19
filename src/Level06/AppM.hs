@@ -49,39 +49,76 @@ runApp = runAppM
 
 instance Functor (AppM e) where
   fmap :: (a -> b) -> AppM e a -> AppM e b
-  fmap = error "fmap for (AppM e) not implemented"
+  fmap f appm = let 
+    aa = runAppM appm
+    in 
+      AppM $ do
+        ae <- aa 
+        (return . (f <$>)) ae
+    -- error "fmap for (AppM e) not implemented"
 
 instance Applicative (AppM e) where
   pure :: a -> AppM e a
-  pure  = error "pure for (AppM e) not implemented"
+  pure z = AppM $ (return . Right) z
+    -- error "pure for (AppM e) not implemented"
 
   (<*>) :: AppM e (a -> b) -> AppM e a -> AppM e b
-  (<*>) = error "spaceship for (AppM e) not implemented"
+  (<*>) af ae = let 
+    f = runAppM af
+    ed = runAppM ae 
+    in 
+      AppM $ do 
+        d <- ed 
+        ff <- f 
+        return $ ff <*> d
+
+    -- error "spaceship for (AppM e) not implemented"
 
 instance Monad (AppM e) where
   return :: a -> AppM e a
-  return = error "return for (AppM e) not implemented"
+  return z = AppM $ return $ Right z
+    -- error "return for (AppM e) not implemented"
 
   (>>=) :: AppM e a -> (a -> AppM e b) -> AppM e b
-  (>>=)  = error "bind for (AppM e) not implemented"
+  (>>=) ae f = let 
+    ed = runAppM ae 
+    in
+    AppM $ do 
+      d <- ed
+      either (pure . Left) (runAppM . f) d
+    -- error "bind for (AppM e) not implemented"
 
 instance MonadIO (AppM e) where
   liftIO :: IO a -> AppM e a
-  liftIO = error "liftIO for (AppM e) not implemented"
+  liftIO c = AppM $ do
+    c1 <- c 
+    return $ Right c1
+    -- error "liftIO for (AppM e) not implemented"
 
 instance MonadError e (AppM e) where
   throwError :: e -> AppM e a
-  throwError = error "throwError for (AppM e) not implemented"
+  throwError z = AppM $ return $ Left z
+    --  error "throwError for (AppM e) not implemented"
 
   catchError :: AppM e a -> (e -> AppM e a) -> AppM e a
-  catchError = error "catchError for (AppM e) not implemented"
+  catchError  z f = AppM $ do
+    res <- runAppM z
+    either ( runAppM . f ) (return . Right) res
+
+  -- error "catchError for (AppM e) not implemented"
 
 -- The 'Bifunctor' instance for 'Either' has proved useful several times
 -- already. Now that our 'AppM' exposes both type variables that are used in our
 -- 'Either', we can define a Bifunctor instance and reap similar benefits.
 instance Bifunctor AppM where
   bimap :: (e -> d) -> (a -> b) -> AppM e a -> AppM d b
-  bimap = error "bimap for AppM not implemented"
+  bimap ef df appm = let 
+    exAppM = runAppM appm
+    in 
+      AppM $ do 
+        ioe <- exAppM 
+        return $ either (Left . ef) (Right . df) ioe
+    -- error "bimap for AppM not implemented"
 
 -- This is a helper function that will `lift` an Either value into our new AppM
 -- by applying `throwError` to the Left value, and using `pure` to lift the
@@ -91,4 +128,6 @@ instance Bifunctor AppM where
 -- pure :: Applicative m => a -> m a
 --
 liftEither :: Either e a -> AppM e a
-liftEither = error "throwLeft not implemented"
+liftEither z =
+  AppM $ return $ either throwError pure z
+  -- error "throwLeft not implemented"
