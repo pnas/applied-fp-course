@@ -8,7 +8,7 @@ module Level06.Core
 
 import qualified Control.Exception                  as Ex
 import           Control.Monad.IO.Class             (liftIO)
-
+import           Data.Bifunctor                     (Bifunctor (..))
 import           Control.Monad.Except               (catchError, throwError)
 
 import           Network.Wai                        (Application, Request,
@@ -40,13 +40,14 @@ import           Level06.AppM                       (App, AppM (..),
                                                      liftEither, runApp)
 import qualified Level06.Conf                       as Conf
 import qualified Level06.DB                         as DB
-import           Level06.Types                      (Conf, ConfigError,
+import           Level06.Types                      (Conf(..),Port (..),
+                                                     DBFilePath (..), ConfigError(..),
                                                      ContentType (..),
                                                      Error (..),
                                                      RqType (AddRq, ListRq, ViewRq),
                                                      encodeComment, encodeTopic,
                                                      mkCommentText, mkTopic,
-                                                     renderContentType)
+                                                     renderContentType, confPortToWai)
 
 -- | Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -57,7 +58,21 @@ data StartUpError
   deriving Show
 
 runApplication :: IO ()
-runApplication = error "copy your previous 'runApp' implementation and refactor as needed"
+runApplication =  do
+  -- Load our configuration
+  cfgE <- runAppM prepareAppReqs
+  -- Loading the configuration can fail, so we have to take that into account now.
+  case cfgE of
+    Left err   ->
+      -- We can't run our app at all! Display the message and exit the application.
+      undefined
+    Right ( cfg , dbConn) ->
+      -- We have a valid config! We can now complete the various pieces needed to run our
+      -- application. This function 'finally' will execute the first 'IO a', and then, even in the
+      -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
+      -- that our DB connection will always be closed when the application finishes, or crashes.
+      Ex.finally (run (confPortToWai cfg) (app cfg dbConn)) (DB.closeDB dbConn)
+  -- error "copy your previous 'runApp' implementation and refactor as needed"
 
 -- | We need to complete the following steps to prepare our app requirements:
 --
@@ -72,7 +87,16 @@ runApplication = error "copy your previous 'runApp' implementation and refactor 
 -- up!
 --
 prepareAppReqs :: AppM StartUpError (Conf, DB.FirstAppDB)
-prepareAppReqs = error "copy your prepareAppReqs from the previous level."
+prepareAppReqs =   
+  AppM $ do -- so ,say you have all these nested contexts , how can you break using other combinators and not do notation?
+    parsedOps <- runAppM $ Conf.parseOptions ""
+    case parsedOps of 
+      Left e -> return $ Left $ ConfErr e
+      Right ops -> do 
+        resp <- DB.initDB $ (getDBFilePath . dbFilePath)  ops
+        return $ either (Left . DBInitErr ) (\ z -> Right (ops , z)) resp
+
+  -- error "copy your prepareAppReqs from the previous level."
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse

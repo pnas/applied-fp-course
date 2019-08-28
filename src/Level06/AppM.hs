@@ -2,10 +2,9 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Level06.AppM
-  ( AppM
+  ( AppM(..)
   , App
   , liftEither
-  , runAppM
   , runApp
   ) where
 
@@ -23,7 +22,7 @@ import           Level06.Types          (Error)
 -- Our new 'AppM'' will also use the record syntax to define our 'runAppM' function. This is a more
 -- common definition of this kind of newtype.
 --
-newtype AppM e a = AppM
+newtype AppM e a = AppM 
   { runAppM :: IO (Either e a)
   }
 
