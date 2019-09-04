@@ -98,7 +98,7 @@ instance MonadError e (AppM e) where
     --  error "throwError for (AppM e) not implemented"
 
   catchError :: AppM e a -> (e -> AppM e a) -> AppM e a
-  catchError  z f = AppM $ do
+  catchError z f = AppM $ do
     res <- runAppM z
     either ( runAppM . f ) (return . Right) res
 
