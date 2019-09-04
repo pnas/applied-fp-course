@@ -89,9 +89,7 @@ instance Monad (AppM e) where
 
 instance MonadIO (AppM e) where
   liftIO :: IO a -> AppM e a
-  liftIO c = AppM $ do
-    c1 <- c 
-    return $ Right c1
+  liftIO c = AppM $ Right <$> c
     -- error "liftIO for (AppM e) not implemented"
 
 instance MonadError e (AppM e) where
